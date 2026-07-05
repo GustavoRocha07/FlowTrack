@@ -1,0 +1,385 @@
+# HU-001 — Criar base de domínio de usuários e solicitações do FlowTrack
+
+## História de Usuário
+
+Como desenvolvedor do FlowTrack,
+quero criar a base de domínio de usuários e solicitações usando TypeScript puro,
+para que o sistema tenha tipos, mocks e regras de negócio organizadas antes da criação das telas.
+
+## Objetivo da Semana 1
+
+Criar a primeira camada lógica do FlowTrack, sem interface visual, sem API e sem dashboard.
+
+Nesta semana, o foco é definir como o sistema representa:
+
+* usuários;
+* perfis de acesso;
+* solicitações;
+* status da solicitação;
+* categorias;
+* prioridades;
+* regras de permissão;
+* regras de alteração de status.
+
+## Escopo
+
+Deve ser trabalhado dentro da base já criada do projeto, principalmente em:
+
+```txt
+src/
+  modules/
+    users/
+    requests/
+```
+
+Não criar telas React nesta semana.
+
+Não criar componentes visuais.
+
+Não criar chamadas HTTP.
+
+Não criar formulários.
+
+Não criar dashboard.
+
+## Tipos obrigatórios
+
+### Módulo de usuários
+
+Criar os tipos relacionados a usuários.
+
+```ts
+export type UserRole = 'ADMIN' | 'MANAGER' | 'REQUESTER';
+
+export type UserStatus = 'ACTIVE' | 'INACTIVE';
+
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  createdAt: Date;
+};
+```
+
+### Regras dos perfis
+
+O sistema deve considerar inicialmente três perfis:
+
+```txt
+ADMIN
+```
+
+Usuário com permissão total no sistema.
+
+Pode criar, assumir, cancelar e finalizar solicitações.
+
+```txt
+MANAGER
+```
+
+Usuário responsável por acompanhar e gerenciar solicitações.
+
+Pode assumir, cancelar e finalizar solicitações.
+
+```txt
+REQUESTER
+```
+
+Usuário comum do sistema.
+
+Pode criar solicitações e visualizar suas próprias solicitações.
+
+Não pode assumir solicitações de outros usuários.
+
+Não pode finalizar solicitações.
+
+## Módulo de solicitações
+
+Criar os tipos relacionados às solicitações do FlowTrack.
+
+```ts
+export type RequestStatus =
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'DONE'
+  | 'CANCELED';
+
+export type RequestPriority =
+  | 'LOW'
+  | 'MEDIUM'
+  | 'HIGH'
+  | 'CRITICAL';
+
+export type RequestCategory =
+  | 'ACCESS'
+  | 'BUG'
+  | 'FEATURE'
+  | 'SUPPORT'
+  | 'INFRA';
+
+export type FlowRequest = {
+  id: string;
+  title: string;
+  description: string;
+  category: RequestCategory;
+  priority: RequestPriority;
+  status: RequestStatus;
+  requesterId: string;
+  assignedToId?: string;
+  createdAt: Date;
+  updatedAt?: Date;
+  finishedAt?: Date;
+  canceledAt?: Date;
+};
+```
+
+## Inputs obrigatórios
+
+Criar também tipos para representar ações do sistema.
+
+### Criação de solicitação
+
+```ts
+export type CreateRequestInput = {
+  title: string;
+  description: string;
+  category: RequestCategory;
+  priority: RequestPriority;
+  requesterId: string;
+};
+```
+
+### Atribuição de responsável
+
+```ts
+export type AssignRequestInput = {
+  requestId: string;
+  assignedToId: string;
+};
+```
+
+### Alteração de status
+
+```ts
+export type ChangeRequestStatusInput = {
+  requestId: string;
+  status: RequestStatus;
+};
+```
+
+## Mocks obrigatórios
+
+Criar mocks para simular dados reais.
+
+### Usuários mockados
+
+Criar pelo menos:
+
+* 1 usuário ADMIN ativo;
+* 1 usuário MANAGER ativo;
+* 1 usuário REQUESTER ativo;
+* 1 usuário inativo.
+
+Exemplo:
+
+```ts
+export const usersMock: User[] = [
+  {
+    id: 'user-1',
+    name: 'Admin FlowTrack',
+    email: 'admin@flowtrack.com',
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    createdAt: new Date('2026-01-01'),
+  },
+];
+```
+
+### Solicitações mockadas
+
+Criar pelo menos:
+
+* 1 solicitação aberta;
+* 1 solicitação em andamento;
+* 1 solicitação finalizada;
+* 1 solicitação cancelada;
+* 1 solicitação crítica.
+
+Exemplo:
+
+```ts
+export const requestsMock: FlowRequest[] = [
+  {
+    id: 'request-1',
+    title: 'Erro ao acessar sistema',
+    description: 'Usuário não consegue acessar o painel interno.',
+    category: 'ACCESS',
+    priority: 'HIGH',
+    status: 'OPEN',
+    requesterId: 'user-3',
+    createdAt: new Date('2026-01-10'),
+  },
+];
+```
+
+## Regras de negócio obrigatórias
+
+Criar funções puras para validar regras do domínio.
+
+Essas funções devem receber dados por parâmetro e retornar `true` ou `false`.
+
+### Regras de usuário
+
+Criar as seguintes funções:
+
+```ts
+canCreateRequest(user: User): boolean
+```
+
+Regra:
+
+* usuário ativo pode criar solicitação;
+* usuário inativo não pode criar solicitação.
+
+```ts
+canManageRequests(user: User): boolean
+```
+
+Regra:
+
+* ADMIN pode gerenciar solicitações;
+* MANAGER pode gerenciar solicitações;
+* REQUESTER não pode gerenciar solicitações;
+* usuário inativo não pode gerenciar solicitações.
+
+```ts
+canAssignRequest(user: User, request: FlowRequest): boolean
+```
+
+Regra:
+
+* apenas ADMIN ou MANAGER podem assumir solicitação;
+* usuário precisa estar ativo;
+* solicitação precisa estar com status `OPEN`;
+* solicitação cancelada ou finalizada não pode ser assumida.
+
+### Regras de solicitação
+
+Criar as seguintes funções:
+
+```ts
+canCancelRequest(user: User, request: FlowRequest): boolean
+```
+
+Regra:
+
+* ADMIN pode cancelar solicitação aberta ou em andamento;
+* MANAGER pode cancelar solicitação aberta ou em andamento;
+* REQUESTER pode cancelar somente solicitação criada por ele;
+* solicitação `DONE` não pode ser cancelada;
+* solicitação `CANCELED` não pode ser cancelada novamente;
+* usuário inativo não pode cancelar solicitação.
+
+```ts
+canFinishRequest(user: User, request: FlowRequest): boolean
+```
+
+Regra:
+
+* apenas ADMIN ou MANAGER podem finalizar solicitação;
+* solicitação precisa estar `IN_PROGRESS`;
+* solicitação precisa ter um responsável;
+* usuário inativo não pode finalizar solicitação.
+
+```ts
+canEditRequest(user: User, request: FlowRequest): boolean
+```
+
+Regra:
+
+* solicitação `DONE` não pode ser editada;
+* solicitação `CANCELED` não pode ser editada;
+* ADMIN pode editar solicitação aberta ou em andamento;
+* MANAGER pode editar solicitação aberta ou em andamento;
+* REQUESTER só pode editar solicitação criada por ele enquanto estiver `OPEN`;
+* usuário inativo não pode editar solicitação.
+
+```ts
+isCriticalRequest(request: FlowRequest): boolean
+```
+
+Regra:
+
+* deve retornar `true` quando a prioridade for `CRITICAL`;
+* deve retornar `false` para as demais prioridades.
+
+## Organização esperada dos arquivos
+
+Usar a estrutura do projeto já configurado, criando os arquivos dentro dos módulos existentes:
+
+```txt
+src/
+  modules/
+    users/
+      types/
+        user.types.ts
+      mocks/
+        user.mocks.ts
+      rules/
+        user.rules.ts
+
+    requests/
+      types/
+        request.types.ts
+      mocks/
+        request.mocks.ts
+      rules/
+        request.rules.ts
+```
+
+Caso o projeto já tenha nomes de pastas diferentes, manter o padrão já criado e apenas adaptar os arquivos para dentro de `users` e `requests`.
+
+## Critérios de aceite
+
+A HU será considerada concluída quando:
+
+* os tipos de usuários forem criados;
+* os tipos de solicitações forem criados;
+* os mocks de usuários forem criados;
+* os mocks de solicitações forem criados;
+* as regras de usuário forem criadas;
+* as regras de solicitação forem criadas;
+* as funções forem puras, sem depender de React;
+* nenhum componente visual for criado;
+* nenhuma chamada de API for criada;
+* os arquivos estiverem organizados dentro de `modules/users` e `modules/requests`;
+* o TypeScript não apresentar erro de tipagem;
+* as regras puderem ser testadas com Jest ou Vitest.
+
+## Fora de escopo nesta semana
+
+Não faz parte da Semana 1:
+
+* tela de login;
+* dashboard;
+* tabela de solicitações;
+* formulário de criação;
+* integração com backend;
+* autenticação real;
+* React Router;
+* Context API;
+* Zustand;
+* Redux;
+* React Query;
+* estilização;
+* MUI;
+* Tailwind;
+* consumo de API.
+
+## Resultado esperado
+
+Ao final da Semana 1, o FlowTrack deve possuir uma base de domínio inicial, com tipos, mocks e regras de negócio organizadas.
+
+Essa base será usada nas próximas semanas para criar telas, formulários, listagens e fluxos reais sem precisar inventar regra de negócio dentro dos componentes React.
