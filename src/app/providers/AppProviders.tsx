@@ -1,7 +1,10 @@
-import {  useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { CssBaseline, ThemeProvider } from '@mui/material';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
 
 import { theme } from '@/app/theme/theme';
 
@@ -16,6 +19,7 @@ export function AppProviders({ children }: AppProvidersProps) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+
         {children}
       </ThemeProvider>
     </QueryClientProvider>

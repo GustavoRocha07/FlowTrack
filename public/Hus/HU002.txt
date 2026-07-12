@@ -1,0 +1,756 @@
+# HU — Consulta de Solicitações do FlowTrack
+
+## 1. Objetivo
+
+Criar a primeira tela funcional de solicitações do FlowTrack.
+
+A tela deve permitir que o usuário visualize, pesquise, filtre e consulte os detalhes das solicitações disponíveis para o seu perfil.
+
+Não será necessário criar um backend real. Os dados devem vir de uma função assíncrona que simule uma API.
+
+---
+
+## 2. História do Usuário
+
+**Como usuário do FlowTrack,**
+quero visualizar e pesquisar as solicitações disponíveis para o meu perfil,
+para que eu possa acompanhar seu status e consultar seus detalhes.
+
+---
+
+## 3. Perfis de usuário
+
+O sistema possui três perfis:
+
+* `ADMIN`
+* `APPROVER`
+* `REQUESTER`
+
+Cada perfil deve visualizar somente as solicitações permitidas pelas regras de negócio.
+
+---
+
+# 4. Critérios de Aceite
+
+## Critério 1 — Acessar a tela de solicitações
+
+**Dado que** o usuário está autenticado,
+**quando** acessar a rota:
+
+```txt
+/requests
+```
+
+**então** o sistema deve exibir a tela de solicitações.
+
+---
+
+## Critério 2 — Listar solicitações
+
+**Dado que** existem solicitações disponíveis para o usuário,
+**quando** a tela for carregada,
+**então** o sistema deve exibir uma lista contendo:
+
+* código;
+* título;
+* categoria;
+* solicitante;
+* prioridade;
+* status;
+* data de criação;
+* ações.
+
+Exemplo:
+
+```txt
+REQ-001 | Compra de notebook | Compra | Gustavo | Alta | Em análise
+REQ-002 | Acesso ao sistema  | Acesso | Maria   | Média | Aprovada
+```
+
+---
+
+## Critério 3 — Buscar solicitação
+
+**Dado que** existem solicitações carregadas,
+**quando** o usuário digitar um código ou título no campo de busca,
+**então** somente as solicitações correspondentes devem ser exibidas.
+
+Exemplos de busca:
+
+```txt
+REQ-001
+```
+
+ou:
+
+```txt
+notebook
+```
+
+---
+
+## Critério 4 — Filtrar por status
+
+O usuário deve conseguir filtrar solicitações pelos seguintes status:
+
+```txt
+DRAFT
+OPEN
+IN_REVIEW
+CHANGES_REQUESTED
+RESUBMITTED
+APPROVED
+REJECTED
+CANCELED
+```
+
+Exemplo:
+
+```txt
+Status selecionado: IN_REVIEW
+```
+
+Resultado esperado:
+
+```txt
+Exibir somente solicitações em análise.
+```
+
+---
+
+## Critério 5 — Filtrar por prioridade
+
+O usuário deve conseguir filtrar por:
+
+```txt
+LOW
+MEDIUM
+HIGH
+```
+
+Exemplo:
+
+```txt
+Prioridade selecionada: HIGH
+```
+
+Resultado esperado:
+
+```txt
+Exibir somente solicitações de prioridade alta.
+```
+
+---
+
+## Critério 6 — Limpar filtros
+
+**Dado que** existem filtros aplicados,
+**quando** o usuário clicar em:
+
+```txt
+Limpar filtros
+```
+
+**então** todos os filtros devem voltar ao estado inicial e a consulta deve ser atualizada.
+
+---
+
+# 5. Regras de visualização
+
+## Administrador — ADMIN
+
+Pode visualizar todas as solicitações.
+
+```txt
+ADMIN → todas as solicitações
+```
+
+---
+
+## Aprovador — APPROVER
+
+Pode visualizar:
+
+* solicitações atribuídas a ele;
+* solicitações em análise;
+* solicitações que ele já aprovou;
+* solicitações que ele já rejeitou.
+
+---
+
+## Solicitante — REQUESTER
+
+Pode visualizar apenas solicitações criadas por ele.
+
+Exemplo:
+
+```txt
+Usuário atual: Gustavo
+Perfil: REQUESTER
+```
+
+Ele deve visualizar:
+
+```txt
+Solicitações cujo requesterId seja igual ao seu id.
+```
+
+---
+
+# 6. Visualização de status
+
+O status deve ser exibido através de um componente reutilizável.
+
+Exemplo:
+
+```tsx
+<RequestStatusChip status={request.status} />
+```
+
+O componente deve receber um `RequestStatus`, e não uma `string` genérica.
+
+Exemplo visual:
+
+```txt
+[ Em análise ]
+
+[ Aprovada ]
+
+[ Rejeitada ]
+```
+
+---
+
+# 7. Visualização de prioridade
+
+As prioridades devem possuir diferenciação visual:
+
+```txt
+LOW    → Baixa
+MEDIUM → Média
+HIGH   → Alta
+```
+
+A prioridade alta deve possuir maior destaque visual.
+
+---
+
+# 8. Visualizar detalhes
+
+**Dado que** uma solicitação está sendo exibida,
+**quando** o usuário clicar na ação de visualizar,
+**então** deve ser aberto um modal ou painel com os detalhes da solicitação.
+
+Exibir:
+
+* código;
+* título;
+* descrição;
+* solicitante;
+* aprovador;
+* status;
+* prioridade;
+* categoria;
+* valor estimado;
+* justificativa;
+* data de criação;
+* data de atualização.
+
+---
+
+# 9. Regras de edição
+
+Solicitações com os seguintes status não podem ser editadas:
+
+```txt
+APPROVED
+REJECTED
+CANCELED
+```
+
+### ADMIN
+
+Pode editar solicitações:
+
+```txt
+OPEN
+IN_REVIEW
+```
+
+### APPROVER
+
+Pode editar somente informações relacionadas à análise.
+
+### REQUESTER
+
+Pode editar somente suas próprias solicitações quando estiverem:
+
+```txt
+DRAFT
+OPEN
+CHANGES_REQUESTED
+```
+
+---
+
+# 10. Regra de aprovação
+
+Somente usuários ativos podem executar ações.
+
+Podem aprovar:
+
+```txt
+ADMIN
+APPROVER
+```
+
+A solicitação somente pode ser aprovada quando estiver:
+
+```txt
+IN_REVIEW
+```
+
+O perfil:
+
+```txt
+REQUESTER
+```
+
+nunca pode aprovar uma solicitação.
+
+Exemplos:
+
+```txt
+ADMIN + IN_REVIEW → pode aprovar
+APPROVER + IN_REVIEW → pode aprovar
+REQUESTER + IN_REVIEW → não pode aprovar
+ADMIN + APPROVED → não pode aprovar novamente
+Usuário INACTIVE → não pode aprovar
+```
+
+---
+
+# 11. Regra de cancelamento
+
+### ADMIN
+
+Pode cancelar solicitações:
+
+```txt
+OPEN
+IN_REVIEW
+```
+
+### REQUESTER
+
+Pode cancelar somente uma solicitação:
+
+* criada por ele;
+* com status `OPEN`.
+
+### APPROVER
+
+Não pode cancelar solicitações.
+
+Solicitações finalizadas não podem ser canceladas.
+
+---
+
+# 12. Justificativa obrigatória
+
+Uma solicitação deve possuir justificativa quando pelo menos uma destas condições for verdadeira:
+
+* prioridade igual a `HIGH`;
+* valor estimado maior que R$ 5.000,00;
+* categoria definida como uma categoria que exige justificativa.
+
+Exemplo:
+
+```txt
+Prioridade: HIGH
+Justificativa: obrigatória
+```
+
+Outro exemplo:
+
+```txt
+Valor estimado: R$ 6.500,00
+Justificativa: obrigatória
+```
+
+---
+
+# 13. Valor estimado obrigatório
+
+As seguintes categorias devem possuir valor estimado:
+
+```txt
+PURCHASE
+REFUND
+```
+
+Uma categoria como:
+
+```txt
+SYSTEM_ACCESS
+```
+
+não precisa possuir valor estimado.
+
+---
+
+# 14. Estados da tela
+
+A tela deve tratar quatro estados.
+
+## Loading
+
+Enquanto os dados estiverem sendo carregados, exibir um indicador de carregamento.
+
+---
+
+## Sucesso
+
+Quando existirem resultados, exibir a listagem.
+
+---
+
+## Lista vazia
+
+Quando nenhum resultado for encontrado, exibir:
+
+```txt
+Nenhuma solicitação encontrada para os filtros informados.
+```
+
+---
+
+## Erro
+
+Quando o carregamento falhar, exibir:
+
+```txt
+Não foi possível carregar as solicitações.
+```
+
+E um botão:
+
+```txt
+Tentar novamente
+```
+
+---
+
+# 15. Serviço mockado
+
+Os dados não devem vir diretamente de um array dentro do componente React.
+
+Deve existir uma função assíncrona que simule uma API.
+
+Fluxo esperado:
+
+```txt
+RequestsPage
+    ↓
+useRequests
+    ↓
+React Query
+    ↓
+requests.service
+    ↓
+requests.mock
+```
+
+O serviço deve:
+
+1. receber os filtros;
+2. receber o usuário atual;
+3. simular um pequeno tempo de espera;
+4. aplicar as regras de visualização;
+5. aplicar os filtros;
+6. aplicar a paginação;
+7. retornar uma resposta completamente tipada.
+
+Exemplo conceitual:
+
+```ts
+getRequests(
+  filters,
+  currentUser
+)
+```
+
+---
+
+# 16. Tipagens obrigatórias
+
+Devem existir tipos para:
+
+```txt
+UserRole
+User
+RequestStatus
+RequestPriority
+RequestCategory
+FlowRequest
+RequestFiltersDTO
+ApiResponse<T>
+PaginatedResponse<T>
+```
+
+Exemplo de uso esperado:
+
+```ts
+ApiResponse<FlowRequest[]>
+```
+
+```ts
+ApiResponse<User>
+```
+
+```ts
+ApiResponse<PaginatedResponse<FlowRequest>>
+```
+
+Não utilizar:
+
+```ts
+any
+```
+
+---
+
+# 17. Filtros da consulta
+
+O DTO da consulta deve conseguir representar:
+
+```txt
+search
+status
+priority
+page
+pageSize
+```
+
+Exemplo conceitual:
+
+```ts
+type RequestFiltersDTO = {
+  search?: string;
+  status?: RequestStatus;
+  priority?: RequestPriority;
+  page: number;
+  pageSize: number;
+};
+```
+
+Também deve ser utilizado pelo menos um Utility Type, como:
+
+```txt
+Partial
+Pick
+Omit
+```
+
+---
+
+# 18. Type Guards
+
+Devem existir funções que validem valores em tempo de execução.
+
+Exemplos:
+
+```txt
+isUserRole
+isRequestStatus
+isRequestPriority
+isRequestCategory
+```
+
+Comportamento esperado:
+
+```ts
+isRequestStatus('APPROVED');
+// true
+```
+
+```ts
+isRequestStatus('INVALID_STATUS');
+// false
+```
+
+---
+
+# 19. Organização do código
+
+A página `RequestsPage.tsx` não deve possuir todas as regras e funcionalidades diretamente dentro dela.
+
+Organização sugerida:
+
+```txt
+src/
+  modules/
+    requests/
+      components/
+        RequestFilters/
+        RequestList/
+        RequestStatusChip/
+        RequestDetails/
+
+      hooks/
+        useRequests.ts
+
+      mocks/
+        requests.mock.ts
+
+      pages/
+        RequestsPage.tsx
+
+      services/
+        requests.service.ts
+
+      types/
+        request.types.ts
+        request-api.types.ts
+
+      utils/
+        request-permissions.ts
+        request-filters.ts
+        request-guards.ts
+```
+
+A responsabilidade da página deve ser apenas coordenar a funcionalidade:
+
+```txt
+RequestsPage
+    ├── usa useRequests
+    ├── renderiza RequestFilters
+    ├── renderiza RequestList
+    └── abre RequestDetails
+```
+
+---
+
+# 20. Testes mínimos obrigatórios
+
+## Permissões
+
+Testar:
+
+```txt
+ADMIN visualiza todas as solicitações.
+REQUESTER visualiza apenas solicitações próprias.
+APPROVER visualiza solicitações atribuídas a ele.
+Usuário inativo não pode aprovar.
+REQUESTER não pode aprovar.
+IN_REVIEW pode ser aprovada por perfil permitido.
+APPROVED não pode ser editada.
+REJECTED não pode ser editada.
+CANCELED não pode ser editada.
+HIGH exige justificativa.
+PURCHASE exige valor estimado.
+```
+
+## Filtros
+
+Testar:
+
+```txt
+Busca por código.
+Busca por título.
+Filtro por status.
+Filtro por prioridade.
+Combinação de filtros.
+Retorno vazio.
+```
+
+## Type Guards
+
+Testar valores válidos e inválidos.
+
+Exemplo:
+
+```ts
+expect(isRequestStatus('APPROVED')).toBe(true);
+expect(isRequestStatus('INVALID_STATUS')).toBe(false);
+```
+
+## Componente
+
+Testar pelo menos:
+
+```txt
+RequestStatusChip
+```
+
+## Página
+
+Criar pelo menos um teste de integração:
+
+```txt
+Dado que o serviço retorna solicitações,
+quando a página é carregada,
+então os registros devem ser exibidos.
+```
+
+---
+
+# 21. Definição de pronto
+
+A HU será considerada concluída quando:
+
+* a rota `/requests` funcionar;
+* os dados forem carregados de um serviço assíncrono mockado;
+* a resposta utilizar `ApiResponse<T>` e `PaginatedResponse<T>`;
+* o acesso aos dados acontecer por um hook com React Query;
+* a busca por código ou título funcionar;
+* o filtro por status funcionar;
+* o filtro por prioridade funcionar;
+* as regras de visualização por perfil funcionarem;
+* loading, erro, sucesso e lista vazia estiverem tratados;
+* nenhum `any` for utilizado;
+* as regras de negócio estiverem fora dos componentes visuais;
+* os testes principais passarem;
+* `npm run build` finalizar sem erro;
+* `npm run test:run` finalizar sem erro.
+
+---
+
+# Resumo do que você realmente precisa entregar
+
+Em termos simples, você precisa criar:
+
+```txt
+1. Tipos
+2. Usuários e solicitações mockadas
+3. Regras de permissão
+4. Funções de filtro
+5. Serviço que simula uma API
+6. Hook com React Query
+7. Tela com filtros e tabela
+8. Modal de detalhes
+9. Estados de loading, erro e vazio
+10. Testes
+```
+
+Fluxo final:
+
+```txt
+Usuário acessa /requests
+        ↓
+Tela chama useRequests
+        ↓
+React Query chama o serviço
+        ↓
+Serviço busca os mocks
+        ↓
+Aplica permissão do usuário
+        ↓
+Aplica busca e filtros
+        ↓
+Aplica paginação
+        ↓
+Retorna dados tipados
+        ↓
+Tela exibe a tabela
+```
