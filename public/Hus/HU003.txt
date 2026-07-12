@@ -1,0 +1,986 @@
+# HU-003 — Criar contratos genéricos de API e DTOs reutilizáveis para o FlowTrack
+
+## História de Usuário
+
+Como desenvolvedor do FlowTrack,
+quero criar contratos genéricos e reutilizáveis para representar respostas de API, paginação e operações sobre usuários e solicitações,
+para que o sistema esteja preparado para futuramente consumir uma API real com segurança de tipos e sem duplicação desnecessária.
+
+---
+
+# Contexto
+
+Nas HUs anteriores, o FlowTrack ganhou sua base de domínio.
+
+## HU-001 — Base de domínio
+
+Foram criados:
+
+* `User`;
+* `UserRole`;
+* `UserStatus`;
+* `FlowRequest`;
+* `RequestStatus`;
+* `RequestPriority`;
+* `RequestCategory`;
+* mocks;
+* inputs;
+* regras de negócio.
+
+As principais regras existentes são:
+
+```txt
+canCreateRequest
+canManageRequests
+canAssignRequest
+canCancelRequest
+canFinishRequest
+canEditRequest
+isCriticalRequest
+```
+
+---
+
+## HU-002 — Validação segura do domínio
+
+Foram adicionados conceitos como:
+
+* `unknown`;
+* narrowing;
+* type guards;
+* validação de perfis;
+* validação de status;
+* validação de prioridades;
+* validação de categorias;
+* validação de usuários;
+* validação de solicitações.
+
+O fluxo atual é:
+
+```txt
+Dado desconhecido
+        ↓
+      unknown
+        ↓
+    Type Guard
+        ↓
+     Narrowing
+        ↓
+Tipo seguro do domínio
+```
+
+---
+
+# Objetivo da Semana 3
+
+Preparar o FlowTrack para representar corretamente os contratos que futuramente existirão entre frontend e backend.
+
+Nesta semana você deverá trabalhar com:
+
+* generics;
+* utility types;
+* DTOs;
+* tipos reutilizáveis;
+* respostas genéricas de API;
+* respostas paginadas;
+* tipos derivados;
+* reutilização dos tipos existentes.
+
+Nenhuma chamada HTTP real deverá ser criada.
+
+Nenhuma tela deverá ser criada.
+
+O foco continua sendo TypeScript.
+
+---
+
+# Regra principal da HU-003
+
+Não alterar arbitrariamente o domínio já definido.
+
+Continuam válidos:
+
+## Perfis
+
+```txt
+ADMIN
+MANAGER
+REQUESTER
+```
+
+## Status de usuário
+
+```txt
+ACTIVE
+INACTIVE
+```
+
+## Status de solicitação
+
+```txt
+OPEN
+IN_PROGRESS
+DONE
+CANCELED
+```
+
+## Prioridades
+
+```txt
+LOW
+MEDIUM
+HIGH
+CRITICAL
+```
+
+## Categorias
+
+```txt
+ACCESS
+BUG
+FEATURE
+SUPPORT
+INFRA
+```
+
+A HU-003 deve reutilizar esses tipos.
+
+Não criar novos status, perfis, prioridades ou categorias.
+
+---
+
+# Escopo
+
+Trabalhar principalmente dentro de:
+
+```txt
+src/
+  modules/
+    users/
+    requests/
+
+  shared/
+    types/
+```
+
+A estrutura poderá evoluir para algo semelhante a:
+
+```txt
+src/
+  shared/
+    types/
+      api.types.ts
+      pagination.types.ts
+
+  modules/
+    users/
+      types/
+        user.types.ts
+        user-api.types.ts
+        user-dto.types.ts
+
+    requests/
+      types/
+        request.types.ts
+        request-api.types.ts
+        request-dto.types.ts
+```
+
+Os nomes podem ser adaptados ao padrão atual do seu projeto.
+
+O importante é manter separação entre:
+
+* entidade do domínio;
+* DTO;
+* resposta de API;
+* tipo genérico compartilhado.
+
+---
+
+# Requisito 01 — Criar um tipo genérico para respostas de API
+
+Criar um tipo reutilizável que consiga representar respostas contendo diferentes tipos de dados.
+
+Ele deverá ser genérico.
+
+O objetivo é conseguir representar cenários como:
+
+```txt
+Resposta contendo um usuário
+
+Resposta contendo uma solicitação
+
+Resposta contendo uma lista de usuários
+
+Resposta contendo uma lista de solicitações
+
+Resposta contendo dados paginados
+```
+
+Exemplos conceituais de utilização:
+
+```txt
+ApiResponse<User>
+
+ApiResponse<FlowRequest>
+
+ApiResponse<User[]>
+
+ApiResponse<FlowRequest[]>
+```
+
+Você deverá decidir quais propriedades uma resposta genérica precisa possuir.
+
+Considere informações como:
+
+* sucesso;
+* dados;
+* mensagem;
+* erro.
+
+Não é necessário criar uma API real.
+
+O foco é apenas criar o contrato tipado.
+
+---
+
+# Requisito 02 — Criar um tipo genérico para paginação
+
+O FlowTrack futuramente terá muitas solicitações.
+
+Por isso, uma consulta não deverá necessariamente retornar todos os registros de uma só vez.
+
+Crie um tipo genérico para representar dados paginados.
+
+Ele deverá poder receber qualquer entidade.
+
+Exemplos conceituais:
+
+```txt
+PaginatedResponse<User>
+
+PaginatedResponse<FlowRequest>
+```
+
+Esse tipo deverá representar pelo menos:
+
+```txt
+lista de itens
+página atual
+quantidade por página
+total de registros
+total de páginas
+```
+
+O objetivo é entender que a estrutura de paginação é igual independentemente da entidade.
+
+O que muda é apenas o tipo do item.
+
+Esse é um dos principais usos de Generics nesta HU.
+
+---
+
+# Requisito 03 — Combinar Generics
+
+O sistema deverá conseguir representar uma resposta de API contendo uma paginação de solicitações.
+
+Conceitualmente:
+
+```txt
+Resposta de API
+    ↓
+Dados paginados
+    ↓
+Lista de FlowRequest
+```
+
+Você deverá criar uma composição de tipos equivalente a:
+
+```txt
+ApiResponse<PaginatedResponse<FlowRequest>>
+```
+
+O mesmo princípio deverá funcionar para usuários:
+
+```txt
+ApiResponse<PaginatedResponse<User>>
+```
+
+Não crie um tipo específico chamado:
+
+```txt
+PaginatedFlowRequestResponse
+```
+
+se a mesma estrutura puder ser representada através dos generics já existentes.
+
+O objetivo é evitar duplicação.
+
+---
+
+# Requisito 04 — Criar DTO para criação de solicitação
+
+A entidade completa `FlowRequest` contém informações que não devem ser fornecidas manualmente no momento da criação.
+
+Por exemplo:
+
+```txt
+id
+status
+createdAt
+updatedAt
+finishedAt
+canceledAt
+assignedToId
+```
+
+Essas propriedades podem ser definidas pelo próprio sistema.
+
+Crie um tipo específico para representar somente os dados necessários para criar uma nova solicitação.
+
+Você já possui um `CreateRequestInput` na HU-001.
+
+Nesta HU, você deverá avaliar:
+
+> Esse tipo já está adequado para representar o DTO de criação?
+
+Caso esteja, reutilize-o.
+
+Caso precise evoluí-lo, faça isso sem duplicar desnecessariamente propriedades de `FlowRequest`.
+
+Utilize Utility Types quando fizer sentido.
+
+Considere especialmente:
+
+```txt
+Pick
+Omit
+```
+
+---
+
+# Requisito 05 — Criar DTO para edição de solicitação
+
+Crie um tipo para representar os campos que podem ser alterados em uma solicitação.
+
+Considere as regras da HU-001.
+
+Uma solicitação possui campos como:
+
+```txt
+title
+description
+category
+priority
+status
+requesterId
+assignedToId
+datas
+```
+
+Mas isso não significa que todos devem ser editáveis pelo mesmo fluxo.
+
+O DTO de edição deve conter somente os campos apropriados para alteração de conteúdo.
+
+Não coloque automaticamente todas as propriedades como opcionais sem pensar no domínio.
+
+Você poderá utilizar:
+
+```txt
+Pick
+Partial
+```
+
+O objetivo é criar algo conceitualmente semelhante a:
+
+```txt
+Selecionar somente propriedades editáveis
+        ↓
+Torná-las opcionais para atualização parcial
+```
+
+---
+
+# Requisito 06 — Criar DTO para atribuição de responsável
+
+A HU-001 já possui:
+
+```txt
+AssignRequestInput
+```
+
+Revise esse tipo.
+
+Ele representa corretamente a operação de atribuição?
+
+A operação precisa identificar:
+
+* qual solicitação será alterada;
+* quem será o responsável.
+
+Reutilize o tipo existente caso ele já atenda ao domínio.
+
+Não recrie um tipo idêntico apenas para cumprir a HU.
+
+O desafio também é saber identificar quando um tipo existente já resolve o problema.
+
+---
+
+# Requisito 07 — Criar DTO para alteração de status
+
+A HU-001 já possui:
+
+```txt
+ChangeRequestStatusInput
+```
+
+Avalie se ele continua sendo adequado.
+
+O tipo deve representar uma operação de alteração de status sem permitir qualquer propriedade desnecessária.
+
+Lembre-se:
+
+Os únicos status válidos continuam sendo:
+
+```txt
+OPEN
+IN_PROGRESS
+DONE
+CANCELED
+```
+
+Não criar novos status nesta HU.
+
+---
+
+# Requisito 08 — Criar DTO para filtros de solicitações
+
+Crie um tipo para representar os filtros de uma futura listagem.
+
+O sistema deverá poder futuramente filtrar solicitações por:
+
+* texto;
+* status;
+* prioridade;
+* categoria;
+* solicitante;
+* responsável.
+
+Considere também paginação:
+
+* página atual;
+* quantidade por página.
+
+Você deverá modelar esse contrato.
+
+Pense em quais propriedades:
+
+* são obrigatórias;
+* são opcionais.
+
+Exemplo de comportamento:
+
+```txt
+Nenhum filtro informado
+→ retorna solicitações normalmente
+
+Status informado
+→ filtra pelo status
+
+Prioridade informada
+→ filtra pela prioridade
+
+Status + categoria informados
+→ combina os filtros
+```
+
+Ainda não é necessário implementar a filtragem.
+
+O foco desta HU é somente a tipagem.
+
+---
+
+# Requisito 09 — Utilizar Partial
+
+Utilize `Partial` em pelo menos um cenário real do FlowTrack.
+
+Não utilize apenas porque a HU exige.
+
+Um bom candidato é um DTO de atualização parcial.
+
+Exemplo conceitual:
+
+```txt
+Título pode ser alterado
+Descrição pode ser alterada
+Categoria pode ser alterada
+Prioridade pode ser alterada
+```
+
+Mas o usuário pode querer alterar somente:
+
+```txt
+priority
+```
+
+Então o tipo precisa representar isso corretamente.
+
+---
+
+# Requisito 10 — Utilizar Pick
+
+Utilize `Pick` para criar pelo menos um tipo derivado a partir de uma entidade existente.
+
+Exemplo conceitual:
+
+Uma tabela de solicitações talvez não precise de todos os dados de `FlowRequest`.
+
+Talvez precise somente de:
+
+```txt
+id
+title
+category
+priority
+status
+createdAt
+```
+
+Você poderá criar um tipo de resumo utilizando `Pick`.
+
+Não criar uma nova definição manual repetindo essas propriedades.
+
+---
+
+# Requisito 11 — Utilizar Omit
+
+Utilize `Omit` quando precisar derivar um tipo removendo propriedades.
+
+Um possível cenário é a criação de solicitação.
+
+Uma solicitação completa possui campos controlados pelo sistema.
+
+O DTO de criação pode precisar remover propriedades como:
+
+```txt
+id
+status
+assignedToId
+createdAt
+updatedAt
+finishedAt
+canceledAt
+```
+
+Avalie se `Omit` é a melhor solução.
+
+O objetivo é praticar escolha consciente.
+
+---
+
+# Requisito 12 — Utilizar Readonly
+
+Escolha um cenário real em que um tipo ou conjunto de propriedades não deveria ser modificado diretamente.
+
+Exemplos possíveis:
+
+```txt
+Dados retornados pela API
+
+Configuração de status
+
+Informações de identificação
+```
+
+Utilize `Readonly` quando fizer sentido.
+
+O objetivo não é tornar tudo readonly indiscriminadamente.
+
+---
+
+# Requisito 13 — Utilizar Record
+
+Crie pelo menos um mapeamento seguro entre um union type e uma configuração.
+
+Um bom exemplo é `RequestStatus`.
+
+Cada status poderá futuramente possuir:
+
+* label;
+* descrição;
+* cor;
+* ordem.
+
+Exemplo conceitual:
+
+```txt
+OPEN
+→ Aberta
+
+IN_PROGRESS
+→ Em andamento
+
+DONE
+→ Finalizada
+
+CANCELED
+→ Cancelada
+```
+
+Utilize `Record` para garantir que todos os status sejam obrigatoriamente mapeados.
+
+O benefício esperado é:
+
+> Se amanhã um novo status for realmente adicionado ao domínio, o TypeScript deverá avisar que o mapeamento precisa ser atualizado.
+
+Você poderá aplicar o mesmo princípio para:
+
+* prioridade;
+* categoria;
+* perfil.
+
+Mas apenas um uso de `Record` é obrigatório nesta HU.
+
+---
+
+# Requisito 14 — Tipar cinco respostas diferentes de API
+
+Como resultado principal da Semana 3, você deverá criar pelo menos cinco exemplos de respostas tipadas.
+
+Não precisa criar HTTP.
+
+Você pode usar mocks ou constantes.
+
+Exemplos:
+
+```txt
+1. Resposta com um usuário
+
+2. Resposta com uma solicitação
+
+3. Resposta com lista de usuários
+
+4. Resposta com lista paginada de solicitações
+
+5. Resposta de erro ou operação sem dados
+```
+
+O objetivo é cumprir o resultado esperado da sua trilha:
+
+> Tipar 5 responses de API.
+
+Esses exemplos devem reutilizar os tipos genéricos criados anteriormente.
+
+---
+
+# Requisito 15 — Criar resposta para operações sem dados
+
+Nem toda operação precisa retornar uma entidade.
+
+Por exemplo:
+
+```txt
+cancelar solicitação
+finalizar solicitação
+alterar status
+```
+
+Uma operação pode retornar somente:
+
+```txt
+sucesso
+mensagem
+```
+
+Seu tipo genérico deve conseguir representar esse cenário sem precisar usar:
+
+```txt
+any
+```
+
+Pense em como representar uma resposta sem conteúdo.
+
+---
+
+# Requisito 16 — Integrar com os guards da HU-002
+
+A HU-003 não deve recriar type guards.
+
+Considere este fluxo futuro:
+
+```txt
+Resposta externa
+        ↓
+ApiResponse<T>
+        ↓
+Dado desconhecido em runtime
+        ↓
+Guards da HU-002
+        ↓
+Entidade segura
+```
+
+Nesta HU você não precisa implementar consumo real de API.
+
+Mas os tipos devem ser compatíveis com a arquitetura já criada.
+
+---
+
+# Requisitos técnicos
+
+A implementação deve:
+
+* utilizar Generics;
+* utilizar pelo menos `Partial`;
+* utilizar pelo menos `Pick`;
+* utilizar pelo menos `Omit`;
+* utilizar pelo menos `Readonly`;
+* utilizar pelo menos `Record`;
+* reutilizar os tipos da HU-001;
+* respeitar os guards da HU-002;
+* não utilizar `any`;
+* não duplicar tipos sem necessidade;
+* não criar chamadas HTTP;
+* não depender de React;
+* não criar componentes visuais.
+
+---
+
+# Organização esperada
+
+Uma possível organização:
+
+```txt
+src/
+  shared/
+    types/
+      api.types.ts
+      pagination.types.ts
+
+  modules/
+    users/
+      types/
+        user.types.ts
+        user-api.types.ts
+        user-dto.types.ts
+
+    requests/
+      types/
+        request.types.ts
+        request-api.types.ts
+        request-dto.types.ts
+        request-view.types.ts
+
+      constants/
+        request-status.constants.ts
+```
+
+Não é obrigatório seguir exatamente essa estrutura.
+
+Evite criar dezenas de arquivos sem necessidade.
+
+O objetivo é organização, não fragmentação excessiva.
+
+---
+
+# Checklist da Semana 3
+
+## Generics
+
+```txt
+[ ] Criar ApiResponse<T>.
+[ ] Criar PaginatedResponse<T>.
+[ ] Combinar os dois tipos.
+[ ] Utilizar os generics com User.
+[ ] Utilizar os generics com FlowRequest.
+```
+
+## DTOs
+
+```txt
+[ ] Revisar CreateRequestInput.
+[ ] Revisar AssignRequestInput.
+[ ] Revisar ChangeRequestStatusInput.
+[ ] Criar DTO de edição.
+[ ] Criar DTO de filtros.
+```
+
+## Utility Types
+
+```txt
+[ ] Utilizar Partial em um caso real.
+[ ] Utilizar Pick em um caso real.
+[ ] Utilizar Omit em um caso real.
+[ ] Utilizar Readonly em um caso real.
+[ ] Utilizar Record em um caso real.
+```
+
+## Tipos de API
+
+```txt
+[ ] Tipar resposta de um usuário.
+[ ] Tipar resposta de uma solicitação.
+[ ] Tipar resposta de uma lista.
+[ ] Tipar resposta paginada.
+[ ] Tipar resposta sem dados ou de erro.
+```
+
+## Integração com HUs anteriores
+
+```txt
+[ ] Reutilizar User.
+[ ] Reutilizar FlowRequest.
+[ ] Reutilizar RequestStatus.
+[ ] Reutilizar RequestPriority.
+[ ] Reutilizar RequestCategory.
+[ ] Não reescrever regras da HU-001.
+[ ] Não reescrever guards da HU-002.
+```
+
+## Qualidade
+
+```txt
+[ ] Não utilizar any.
+[ ] Não criar status novos.
+[ ] Não criar perfis novos.
+[ ] Não duplicar tipos desnecessariamente.
+[ ] TypeScript sem erros.
+[ ] Build executando sem erros.
+```
+
+---
+
+# Critérios de aceite
+
+A HU será considerada concluída quando:
+
+1. Existir um tipo genérico capaz de representar respostas de diferentes entidades.
+
+2. Existir um tipo genérico para paginação.
+
+3. For possível representar:
+
+```txt
+ApiResponse<User>
+```
+
+4. For possível representar:
+
+```txt
+ApiResponse<FlowRequest>
+```
+
+5. For possível representar uma lista de usuários.
+
+6. For possível representar uma resposta paginada de solicitações.
+
+7. For possível representar uma operação sem dados.
+
+8. Existir um DTO para atualização parcial de solicitação.
+
+9. Existir um DTO para filtros de solicitações.
+
+10. Pelo menos um uso real de `Partial` existir.
+
+11. Pelo menos um uso real de `Pick` existir.
+
+12. Pelo menos um uso real de `Omit` existir.
+
+13. Pelo menos um uso real de `Readonly` existir.
+
+14. Pelo menos um uso real de `Record` existir.
+
+15. Cinco respostas diferentes de API estiverem tipadas.
+
+16. Nenhum `any` tiver sido utilizado.
+
+17. Nenhuma regra da HU-001 tiver sido duplicada ou alterada sem necessidade.
+
+18. Nenhum guard da HU-002 tiver sido recriado.
+
+19. Nenhum novo status ou perfil tiver sido inventado.
+
+20. O TypeScript não apresentar erros.
+
+21. O build executar sem erros.
+
+---
+
+# Fora de escopo
+
+Não faz parte da HU-003:
+
+* React;
+* componentes;
+* dashboard;
+* tabela;
+* formulário visual;
+* MUI;
+* React Router;
+* React Query;
+* Axios;
+* Fetch;
+* API real;
+* backend;
+* banco de dados;
+* login;
+* autenticação;
+* testes unitários.
+
+Esses assuntos serão adicionados quando fizerem parte do conteúdo estudado.
+
+---
+
+# Resultado esperado
+
+Ao final da Semana 3, o projeto deverá evoluir assim:
+
+```txt
+HU-001
+Domínio + tipos + mocks + regras
+
+        ↓
+
+HU-002
+Unknown + narrowing + type guards
+
+        ↓
+
+HU-003
+Generics + Utility Types + DTOs + contratos de API
+```
+
+A arquitetura conceitual ficará assim:
+
+```txt
+User / FlowRequest
+        ↓
+DTOs de entrada
+        ↓
+Operação futura
+        ↓
+ApiResponse<T>
+        ↓
+PaginatedResponse<T>
+```
+
+E você deverá conseguir representar cenários como:
+
+```txt
+Buscar um usuário
+→ ApiResponse<User>
+
+Buscar uma solicitação
+→ ApiResponse<FlowRequest>
+
+Listar usuários
+→ ApiResponse<User[]>
+
+Listar solicitações com paginação
+→ ApiResponse<PaginatedResponse<FlowRequest>>
+
+Cancelar uma solicitação
+→ Resposta de sucesso sem entidade obrigatória
+```
+
+A HU-003 deve provar que você consegue criar contratos TypeScript reutilizáveis para um sistema real, evitando duplicação e deixando o FlowTrack preparado para a futura camada de serviços e API.

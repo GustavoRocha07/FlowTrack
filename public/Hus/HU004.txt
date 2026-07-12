@@ -1,0 +1,1227 @@
+# HU-004 — Refatorar a primeira camada React do FlowTrack com TypeScript forte
+
+## História de Usuário
+
+Como desenvolvedor do FlowTrack,
+quero refatorar componentes React existentes utilizando TypeScript forte,
+para eliminar tipagens inseguras, remover `any` desnecessários, tratar corretamente dados desconhecidos e garantir que as props dos componentes respeitem o domínio já construído nas HUs anteriores.
+
+---
+
+# Contexto
+
+O FlowTrack já possui três camadas de conhecimento construídas progressivamente.
+
+## HU-001 — Base do domínio
+
+Foram definidos:
+
+* usuários;
+* perfis de acesso;
+* status de usuário;
+* solicitações;
+* status de solicitação;
+* prioridades;
+* categorias;
+* mocks;
+* regras de negócio.
+
+Tipos existentes:
+
+```txt
+User
+UserRole
+UserStatus
+FlowRequest
+RequestStatus
+RequestPriority
+RequestCategory
+```
+
+Regras existentes:
+
+```txt
+canCreateRequest
+canManageRequests
+canAssignRequest
+canCancelRequest
+canFinishRequest
+canEditRequest
+isCriticalRequest
+```
+
+---
+
+## HU-002 — Validação segura do domínio
+
+Foram trabalhados:
+
+* `unknown`;
+* narrowing;
+* type guards;
+* validação de usuários;
+* validação de solicitações;
+* validação de status;
+* validação de prioridades;
+* validação de categorias.
+
+O sistema possui ou deverá possuir guards equivalentes a:
+
+```txt
+isUserRole
+isUserStatus
+isUser
+isRequestStatus
+isRequestPriority
+isRequestCategory
+isFlowRequest
+```
+
+---
+
+## HU-003 — Tipos reutilizáveis
+
+Foram trabalhados:
+
+* Generics;
+* `ApiResponse<T>`;
+* `PaginatedResponse<T>`;
+* DTOs;
+* `Partial`;
+* `Pick`;
+* `Omit`;
+* `Readonly`;
+* `Record`.
+
+A HU-004 deve reutilizar esse conhecimento quando realmente fizer sentido.
+
+Não utilizar Utility Types apenas para dizer que foram utilizados.
+
+---
+
+# Objetivo da Semana 4
+
+Refatorar a primeira camada React do FlowTrack aplicando TypeScript forte em três componentes.
+
+Ao final da HU, você deverá demonstrar que consegue:
+
+* remover `any` desnecessários;
+* tratar valores desconhecidos antes de usá-los;
+* criar props fortemente tipadas;
+* tipar callbacks;
+* tipar eventos React;
+* reutilizar tipos do domínio;
+* reutilizar guards existentes;
+* reutilizar regras de negócio existentes;
+* evitar duplicação de estruturas de tipos;
+* impedir que componentes recebam valores inválidos.
+
+---
+
+# O que será construído
+
+A tela inicial de solicitações do FlowTrack deverá começar a exibir os mocks criados na HU-001.
+
+Ainda não haverá:
+
+* API;
+* serviço assíncrono;
+* Axios;
+* Fetch;
+* React Query;
+* backend.
+
+O fluxo será simples:
+
+```txt
+requestsMock
+      ↓
+RequestsPage
+      ↓
+RequestList
+      ↓
+RequestCard
+```
+
+Os três componentes principais do desafio serão:
+
+```txt
+1. RequestsPage
+2. RequestList
+3. RequestCard
+```
+
+Caso `RequestList` e `RequestCard` ainda não existam, eles deverão ser extraídos da `RequestsPage`.
+
+Nesse caso, o desafio será transformar uma página que concentraria toda a renderização em três componentes menores e fortemente tipados.
+
+---
+
+# Regra principal da HU-004
+
+A camada React não deve redefinir o domínio.
+
+Por exemplo, se já existe:
+
+```txt
+FlowRequest
+```
+
+não crie dentro de um componente outra estrutura como:
+
+```txt
+RequestProps
+  id
+  title
+  description
+  status
+  priority
+```
+
+manualmente, repetindo propriedades que já existem.
+
+Utilize o domínio existente diretamente ou derive um tipo dele quando necessário.
+
+O mesmo vale para:
+
+```txt
+RequestStatus
+RequestPriority
+RequestCategory
+User
+```
+
+---
+
+# Escopo
+
+Trabalhar principalmente em:
+
+```txt
+src/
+  modules/
+    requests/
+      components/
+      pages/
+      types/
+      mocks/
+      rules/
+      guards/
+
+    users/
+      types/
+      mocks/
+      rules/
+      guards/
+```
+
+Estrutura esperada:
+
+```txt
+src/
+  modules/
+    requests/
+      components/
+        RequestCard/
+          RequestCard.tsx
+
+        RequestList/
+          RequestList.tsx
+
+      pages/
+        RequestsPage.tsx
+
+      types/
+        request.types.ts
+
+      mocks/
+        request.mocks.ts
+
+      rules/
+        request.rules.ts
+
+      guards/
+        request.guards.ts
+```
+
+Você pode adaptar nomes e estrutura ao padrão atual do seu projeto.
+
+---
+
+# Requisito 01 — Refatorar `RequestsPage`
+
+A `RequestsPage` deverá funcionar como componente coordenador da tela.
+
+Ela poderá ser responsável por:
+
+* obter os mocks existentes;
+* controlar estado necessário para a interface;
+* passar dados para os componentes filhos;
+* reagir a ações do usuário.
+
+Ela não deverá:
+
+* redefinir o tipo `FlowRequest`;
+* possuir `any`;
+* concentrar toda a renderização das solicitações;
+* recriar regras de negócio;
+* validar manualmente status já validados por guards existentes.
+
+O fluxo esperado é:
+
+```txt
+RequestsPage
+    ↓
+fornece lista
+    ↓
+RequestList
+```
+
+---
+
+# Requisito 02 — Criar ou refatorar `RequestList`
+
+O componente deverá receber uma coleção de solicitações.
+
+Sua prop principal deverá respeitar o domínio existente.
+
+Conceitualmente:
+
+```txt
+requests
+    ↓
+coleção de FlowRequest
+```
+
+O componente deverá ser responsável por:
+
+* receber as solicitações;
+* percorrer a coleção;
+* renderizar um `RequestCard` para cada item;
+* exibir um estado vazio quando não houver solicitações.
+
+Ele não deverá:
+
+* usar `any[]`;
+* usar `object[]`;
+* usar `unknown[]` sem tratamento;
+* redefinir manualmente a estrutura de `FlowRequest`.
+
+Exemplos que deverão ser eliminados durante a refatoração:
+
+```txt
+requests: any[]
+```
+
+```txt
+requests: object[]
+```
+
+```txt
+requests: Array<any>
+```
+
+O TypeScript deve saber exatamente que tipo de item existe na coleção.
+
+---
+
+# Requisito 03 — Criar ou refatorar `RequestCard`
+
+O componente deverá representar visualmente uma solicitação.
+
+Deverá exibir pelo menos:
+
+```txt
+título
+categoria
+prioridade
+status
+```
+
+Poderá também exibir:
+
+```txt
+descrição
+data de criação
+responsável
+```
+
+caso faça sentido para sua interface.
+
+As props devem ser fortemente tipadas utilizando o domínio existente.
+
+Você deverá decidir conscientemente entre:
+
+```txt
+Receber uma FlowRequest completa
+```
+
+ou:
+
+```txt
+Receber somente um subconjunto de FlowRequest
+```
+
+Caso o componente utilize somente algumas propriedades, avalie o uso de:
+
+```txt
+Pick
+```
+
+O objetivo é evitar duplicação manual de tipos.
+
+---
+
+# Requisito 04 — Tipar corretamente todas as props
+
+Nos três componentes refatorados, nenhuma prop poderá utilizar:
+
+```txt
+any
+object
+Function
+Array<any>
+Record<string, any>
+```
+
+quando existir uma tipagem mais específica.
+
+Exemplo conceitual inadequado:
+
+```txt
+onSelect: Function
+```
+
+O componente deverá saber:
+
+* quais argumentos a função recebe;
+* qual o tipo desses argumentos;
+* qual o retorno da função.
+
+Por exemplo, uma callback poderá conceitualmente representar:
+
+```txt
+Recebe o ID de uma solicitação
+Não retorna valor
+```
+
+Ou:
+
+```txt
+Recebe uma FlowRequest
+Não retorna valor
+```
+
+Você deverá escolher a assinatura correta de acordo com a responsabilidade do componente.
+
+---
+
+# Requisito 05 — Tipar callbacks
+
+Caso um componente tenha ações como:
+
+```txt
+visualizar
+selecionar
+editar
+cancelar
+```
+
+as callbacks deverão possuir assinaturas explícitas e seguras.
+
+Não utilizar:
+
+```txt
+Function
+(...args: any[]) => any
+```
+
+A callback deverá revelar exatamente seu contrato.
+
+Exemplo conceitual:
+
+```txt
+Entrada:
+identificador de uma solicitação
+
+Saída:
+nenhuma
+```
+
+Ou:
+
+```txt
+Entrada:
+FlowRequest
+
+Saída:
+nenhuma
+```
+
+Você deverá decidir qual opção produz menor acoplamento para cada componente.
+
+---
+
+# Requisito 06 — Tipar eventos React
+
+Caso a página utilize:
+
+* botão;
+* input;
+* select;
+* checkbox;
+* formulário;
+
+os eventos deverão possuir tipagem adequada.
+
+Não utilizar:
+
+```txt
+event: any
+```
+
+Também não utilizar um tipo genérico demais apenas para silenciar o TypeScript.
+
+O evento deve representar corretamente o elemento que o originou.
+
+---
+
+# Requisito 07 — Eliminar `any` dos três componentes
+
+Faça uma revisão completa nos três componentes:
+
+```txt
+RequestsPage
+RequestList
+RequestCard
+```
+
+Localize usos como:
+
+```txt
+any
+any[]
+Record<string, any>
+(...args: any[]) => any
+event: any
+```
+
+Cada ocorrência deverá ser analisada.
+
+Pergunte:
+
+```txt
+Eu realmente não sei qual é o tipo?
+```
+
+Caso saiba, informe o tipo correto.
+
+Caso realmente seja um dado desconhecido vindo de uma fonte não confiável, utilize:
+
+```txt
+unknown
+```
+
+e faça a validação adequada.
+
+Não substitua cegamente:
+
+```txt
+any
+```
+
+por:
+
+```txt
+unknown
+```
+
+O objetivo é segurança, não apenas trocar uma palavra pela outra.
+
+---
+
+# Requisito 08 — Tratar `unknown` antes de usar
+
+Todo valor `unknown` deverá passar por narrowing antes de suas propriedades serem acessadas.
+
+O fluxo deve ser:
+
+```txt
+unknown
+    ↓
+validação
+    ↓
+type guard
+    ↓
+tipo conhecido
+    ↓
+utilização
+```
+
+Evite:
+
+```txt
+unknown
+    ↓
+as FlowRequest
+    ↓
+uso direto
+```
+
+A HU-002 já criou os mecanismos necessários para validar o domínio.
+
+Reutilize-os.
+
+---
+
+# Requisito 09 — Criar um cenário real com dado desconhecido
+
+Para demonstrar o tratamento seguro de `unknown`, crie pelo menos um cenário controlado dentro do FlowTrack em que um dado ainda não seja confiável.
+
+Uma possibilidade é simular um dado externo bruto:
+
+```txt
+rawRequest
+```
+
+Esse valor deve inicialmente ser tratado como:
+
+```txt
+unknown
+```
+
+Antes de chegar ao componente React, deverá passar pelo guard criado na HU-002.
+
+Fluxo:
+
+```txt
+rawRequest: unknown
+        ↓
+isFlowRequest
+        ↓
+válido?
+   ↙           ↘
+ sim           não
+ ↓              ↓
+renderiza      trata erro
+```
+
+Não é necessário criar API.
+
+Pode ser apenas uma simulação de dado externo para aplicar o conteúdo estudado.
+
+---
+
+# Requisito 10 — Reutilizar `FlowRequest`
+
+Os componentes não deverão criar uma nova representação de solicitação sem necessidade.
+
+Se já existe:
+
+```txt
+FlowRequest
+```
+
+utilize-o.
+
+Caso um componente precise somente de:
+
+```txt
+id
+title
+priority
+status
+```
+
+avalie derivar um tipo utilizando:
+
+```txt
+Pick<FlowRequest, ...>
+```
+
+Não escreva novamente:
+
+```txt
+type RequestCardData = {
+  id: string;
+  title: string;
+  priority: RequestPriority;
+  status: RequestStatus;
+}
+```
+
+quando a informação puder ser derivada do domínio existente.
+
+---
+
+# Requisito 11 — Reutilizar `RequestStatus`
+
+Ao exibir o status, não tipar uma prop como:
+
+```txt
+status: string
+```
+
+se os únicos valores permitidos são:
+
+```txt
+OPEN
+IN_PROGRESS
+DONE
+CANCELED
+```
+
+A tipagem deve impedir que alguém faça:
+
+```txt
+status = "PENDING"
+```
+
+ou:
+
+```txt
+status = "APPROVED"
+```
+
+porque esses valores não pertencem ao domínio atual.
+
+---
+
+# Requisito 12 — Reutilizar `RequestPriority`
+
+O mesmo vale para prioridade.
+
+Não utilizar:
+
+```txt
+priority: string
+```
+
+quando existe:
+
+```txt
+RequestPriority
+```
+
+Os únicos valores continuam sendo:
+
+```txt
+LOW
+MEDIUM
+HIGH
+CRITICAL
+```
+
+---
+
+# Requisito 13 — Reutilizar o `Record` da HU-003
+
+Se na HU-003 você criou um mapeamento de status semelhante a:
+
+```txt
+OPEN → Aberta
+IN_PROGRESS → Em andamento
+DONE → Finalizada
+CANCELED → Cancelada
+```
+
+não recrie essa lógica dentro do JSX.
+
+Evite algo como:
+
+```txt
+Se OPEN, mostra "Aberta"
+Se IN_PROGRESS, mostra "Em andamento"
+...
+```
+
+espalhado pelo componente.
+
+Reutilize a configuração já existente.
+
+O mesmo pode ser feito para prioridades, caso você já tenha criado esse mapeamento.
+
+---
+
+# Requisito 14 — Reutilizar `isCriticalRequest`
+
+Para destacar uma solicitação crítica, não faça dentro do JSX uma nova regra como:
+
+```txt
+request.priority === CRITICAL
+```
+
+se a intenção é representar exatamente a regra já existente:
+
+```txt
+isCriticalRequest(request)
+```
+
+A camada React deverá consumir a regra do domínio.
+
+Fluxo:
+
+```txt
+FlowRequest
+     ↓
+isCriticalRequest
+     ↓
+true ou false
+     ↓
+decisão visual
+```
+
+Não duplicar a regra dentro do componente.
+
+---
+
+# Requisito 15 — Não colocar regras de permissão dentro do JSX
+
+Caso você adicione alguma ação, como:
+
+```txt
+Editar
+Cancelar
+Finalizar
+Assumir
+```
+
+não recrie condições do tipo:
+
+```txt
+user.role === ADMIN
+&& request.status !== DONE
+&& request.status !== CANCELED
+```
+
+Já existem regras como:
+
+```txt
+canEditRequest
+canCancelRequest
+canFinishRequest
+canAssignRequest
+```
+
+Os componentes devem apenas consumir o resultado dessas funções.
+
+---
+
+# Requisito 16 — Props imutáveis
+
+Considere utilizar `Readonly` nas props dos componentes quando fizer sentido.
+
+O componente não deve modificar diretamente o objeto de props recebido.
+
+O objetivo é reforçar que:
+
+```txt
+Props entram no componente
+        ↓
+Componente usa as props
+        ↓
+Componente não deve mutar o objeto recebido
+```
+
+Não é necessário aplicar `Readonly` indiscriminadamente em todos os tipos do sistema.
+
+---
+
+# Requisito 17 — Não utilizar casts para esconder problemas
+
+Analise usos como:
+
+```txt
+as FlowRequest
+as User
+as RequestStatus
+as RequestPriority
+```
+
+Um cast não é automaticamente errado.
+
+Porém, nesta HU, todo cast deverá ter uma justificativa real.
+
+Não faça:
+
+```txt
+Recebi um unknown
+        ↓
+as FlowRequest
+        ↓
+problema resolvido
+```
+
+Nesse caso, utilize os guards da HU-002.
+
+---
+
+# Requisito 18 — Estado vazio fortemente tipado
+
+O `RequestList` deverá tratar o caso:
+
+```txt
+[]
+```
+
+Sem erro.
+
+Comportamento esperado:
+
+```txt
+Nenhuma solicitação encontrada.
+```
+
+Não precisa criar um componente complexo.
+
+O objetivo é garantir que:
+
+```txt
+FlowRequest[]
+```
+
+também representa corretamente uma coleção vazia.
+
+---
+
+# Requisito 19 — Renderizar os mocks da HU-001
+
+A `RequestsPage` deverá utilizar os mocks já criados anteriormente.
+
+Não criar um segundo conjunto de dados fictícios apenas para a UI.
+
+Fluxo:
+
+```txt
+request.mocks.ts
+        ↓
+RequestsPage
+        ↓
+RequestList
+        ↓
+RequestCard
+```
+
+Assim, a interface finalmente começa a consumir o domínio real do projeto.
+
+---
+
+# Requisito 20 — Refatorar exatamente três componentes
+
+Ao final da HU, você deverá escolher e documentar os três componentes refatorados.
+
+Recomendação:
+
+```txt
+1. RequestsPage
+2. RequestList
+3. RequestCard
+```
+
+Para cada um, você deverá conseguir responder:
+
+```txt
+Quais problemas de tipagem existiam?
+
+Qual tipo foi utilizado para resolver?
+
+Foi eliminado algum any?
+
+Existia unknown sem tratamento?
+
+As props estavam genéricas demais?
+
+Foi possível reutilizar algum tipo já existente?
+```
+
+Não precisa criar um relatório formal.
+
+Mas você deve ser capaz de explicar essas decisões.
+
+---
+
+# O que não fazer
+
+Não transformar a HU em um exercício de CSS.
+
+A aparência visual não é o objetivo principal.
+
+Também não transformar a HU em:
+
+```txt
+criação de API
+React Query
+backend
+paginação
+autenticação
+dashboard completo
+CRUD completo
+```
+
+O foco é:
+
+```txt
+React
++
+TypeScript forte
++
+refatoração
+```
+
+---
+
+# Requisitos técnicos obrigatórios
+
+A implementação deverá:
+
+* utilizar React;
+* utilizar TypeScript;
+* reutilizar `FlowRequest`;
+* reutilizar `RequestStatus`;
+* reutilizar `RequestPriority`;
+* reutilizar tipos das HUs anteriores;
+* eliminar `any` desnecessários;
+* tratar qualquer `unknown` utilizado;
+* utilizar type guards para dados desconhecidos do domínio;
+* tipar callbacks;
+* tipar eventos, caso existam;
+* evitar casts sem justificativa;
+* manter regras de negócio fora dos componentes;
+* refatorar três componentes.
+
+---
+
+# Organização sugerida
+
+```txt
+src/
+  modules/
+    requests/
+      components/
+        RequestCard/
+          RequestCard.tsx
+
+        RequestList/
+          RequestList.tsx
+
+      pages/
+        RequestsPage.tsx
+
+      types/
+        request.types.ts
+
+      mocks/
+        request.mocks.ts
+
+      guards/
+        request.guards.ts
+
+      rules/
+        request.rules.ts
+
+      constants/
+        request-status.constants.ts
+```
+
+Não é obrigatório criar um arquivo para cada pequena coisa.
+
+Mantenha a organização proporcional ao tamanho do projeto.
+
+---
+
+# Checklist da Semana 4
+
+## Componente 1 — RequestsPage
+
+```txt
+[ ] Refatorar RequestsPage.
+[ ] Remover any desnecessários.
+[ ] Utilizar os mocks existentes.
+[ ] Não duplicar tipos do domínio.
+[ ] Não concentrar toda a renderização na página.
+```
+
+## Componente 2 — RequestList
+
+```txt
+[ ] Criar ou refatorar RequestList.
+[ ] Tipar a coleção corretamente.
+[ ] Não utilizar any[].
+[ ] Renderizar RequestCard.
+[ ] Tratar lista vazia.
+```
+
+## Componente 3 — RequestCard
+
+```txt
+[ ] Criar ou refatorar RequestCard.
+[ ] Tipar as props.
+[ ] Reutilizar FlowRequest ou um tipo derivado.
+[ ] Exibir status fortemente tipado.
+[ ] Exibir prioridade fortemente tipada.
+[ ] Reutilizar isCriticalRequest quando necessário.
+```
+
+## Props
+
+```txt
+[ ] Nenhuma prop utiliza any sem necessidade.
+[ ] Nenhuma callback utiliza Function.
+[ ] Nenhuma callback utiliza (...args: any[]) => any.
+[ ] Props reutilizam tipos existentes.
+[ ] Props não duplicam o domínio manualmente.
+```
+
+## Unknown
+
+```txt
+[ ] Criar pelo menos um cenário com dado unknown.
+[ ] Fazer narrowing antes de utilizar o dado.
+[ ] Reutilizar guard da HU-002.
+[ ] Não converter unknown diretamente com cast apenas para silenciar erro.
+```
+
+## Tipagem React
+
+```txt
+[ ] Eventos estão tipados quando existirem.
+[ ] Callbacks estão tipadas.
+[ ] Arrays possuem tipo específico.
+[ ] Objetos possuem tipo específico.
+[ ] Nenhum componente depende de object genérico.
+```
+
+## Reutilização
+
+```txt
+[ ] Reutilizar tipos da HU-001.
+[ ] Reutilizar guards da HU-002.
+[ ] Reutilizar Utility Types da HU-003 quando fizer sentido.
+[ ] Reutilizar regras de negócio existentes.
+[ ] Não criar novos status.
+[ ] Não criar novos perfis.
+```
+
+## Qualidade
+
+```txt
+[ ] Refatorar três componentes.
+[ ] Não utilizar any desnecessário.
+[ ] Não possuir unknown sem tratamento.
+[ ] Não possuir props mal tipadas.
+[ ] TypeScript sem erros.
+[ ] Build executando corretamente.
+```
+
+---
+
+# Critérios de aceite
+
+A HU será considerada concluída quando:
+
+1. Três componentes React tiverem sido refatorados.
+
+2. A `RequestsPage` utilizar os mocks criados anteriormente.
+
+3. A lista de solicitações for tipada como uma coleção de `FlowRequest`.
+
+4. O componente responsável por representar uma solicitação possuir props explicitamente tipadas.
+
+5. Nenhuma prop utilizar `any` sem necessidade real.
+
+6. Nenhuma callback utilizar o tipo genérico `Function`.
+
+7. Nenhuma callback utilizar `(...args: any[]) => any` sem necessidade real.
+
+8. Os status utilizarem `RequestStatus` em vez de `string`.
+
+9. As prioridades utilizarem `RequestPriority` em vez de `string`.
+
+10. Pelo menos um cenário com `unknown` tiver sido tratado por narrowing.
+
+11. Os guards da HU-002 forem reutilizados para validar dados desconhecidos do domínio.
+
+12. Os tipos existentes forem reutilizados em vez de duplicados.
+
+13. `isCriticalRequest` for reutilizada quando houver decisão relacionada a prioridade crítica.
+
+14. Regras de permissão não forem duplicadas dentro do JSX.
+
+15. Não houver casts utilizados apenas para esconder erros de TypeScript.
+
+16. O TypeScript não apresentar erros nos três componentes.
+
+17. O build executar corretamente.
+
+---
+
+# Fora de escopo
+
+Não faz parte da HU-004:
+
+* API real;
+* serviços assíncronos;
+* Axios;
+* Fetch;
+* React Query;
+* backend;
+* banco de dados;
+* autenticação real;
+* dashboard completo;
+* paginação real;
+* filtros avançados;
+* testes unitários.
+
+Testes não são exigidos porque ainda não fazem parte do conteúdo estudado.
+
+---
+
+# Resultado esperado
+
+Ao finalizar a Semana 4, o FlowTrack deverá evoluir de:
+
+```txt
+Domínio fortemente tipado
+```
+
+para:
+
+```txt
+Domínio fortemente tipado
+        ↓
+Componentes React fortemente tipados
+```
+
+A arquitetura ficará assim:
+
+```txt
+HU-001
+Tipos e regras do domínio
+        ↓
+HU-002
+Validação de unknown com guards
+        ↓
+HU-003
+Tipos genéricos e reutilizáveis
+        ↓
+HU-004
+Componentes React seguros e fortemente tipados
+```
+
+O resultado esperado é conseguir olhar para três componentes antigos e identificar problemas como:
+
+```txt
+any desnecessário
+unknown não tratado
+props genéricas
+callbacks inseguras
+tipos duplicados
+casts sem justificativa
+regras de negócio dentro do JSX
+```
+
+e refatorá-los utilizando o conhecimento acumulado nas semanas anteriores.
+
+A HU-004 não deve apenas deixar o TypeScript satisfeito.
+
+Ela deve tornar explícito o contrato de cada componente e impedir que dados inválidos sejam usados pela interface.
